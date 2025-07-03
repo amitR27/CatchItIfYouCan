@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catch the Ball Game - Bug-Free</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      background: linear-gradient(to bottom, #74ebd5, #acb6e5); 
+      display: flex; 
+      justify-content: center; 
+      align-items: flex-start; 
+      height: 100vh; 
+      overflow: hidden; 
+    }
+    .game-container { 
+      position: relative; 
+      width: 100vw; 
+      max-width: 600px; 
+      height: 90vh; 
+      background: #ffffff; 
+      overflow: hidden; 
+      border: 3px solid #333; 
+    }
+    .ball { 
+      width: 20px; 
+      height: 20px; 
+      background: red; 
+      border-radius: 50%; 
+      position: absolute; 
+      top: 10px; 
+      left: 50%; 
+      transform: translateX(-50%); 
+    }
+    .paddle { 
+      width: 150px; 
+      height: 25px; 
+      background: black; 
+      position: absolute; 
+      bottom: 30px; 
+      border-radius: 10px; 
+      touch-action: none; 
+    }
+    .score { 
+      font-size: 18px; 
+      position: absolute; 
+      top: 10px; 
+      left: 10px; 
+      font-family: Arial, sans-serif; 
+      color: #333; 
+    }
+    .game-over { 
+      font-size: 30px; 
+      color: red; 
+      position: absolute; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%); 
+      display: none; 
+      text-align: center; 
+    }
+    #restartBtn { 
+      position: absolute; 
+      top: 60%; 
+      left: 50%; 
+      transform: translateX(-50%); 
+      padding: 10px 20px; 
+      display: none; 
+      cursor: pointer; 
+      background: #4CAF50; 
+      border: none; 
+      color: white; 
+      border-radius: 5px; 
+    }
+    .ball-bounce { 
+      animation: bounceEffect 0.2s ease-out; 
+    }
+    @keyframes bounceEffect {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    .star {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: red;
+      border-radius: 50%;
+      opacity: 1;
+      pointer-events: none;
+      animation: starOut 0.8s ease-out forwards;
+    }
+    @keyframes starOut {
+      0% { transform: translate(0, 0) scale(1); opacity: 1; }
+      100% { transform: translate(var(--star-translate-x), var(--star-translate-y)) scale(0.5); opacity: 0; }
+    }
+    #pauseBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 6px 14px;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      background: #333;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      transition: background 0.3s ease;
+    }
+
+    #pauseBtn:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container" id="game">
+    <div class="score" id="score">Score: 0 | Lives: 3</div>
+    <button id="pauseBtn">⏸ Pause</button>
+    <div class="ball" id="ball"></div>
+    <div class="paddle" id="paddle"></div>
+    <div class="game-over" id="gameOver">
+      Game Over!<br>Final Score: <span id="finalScore">0</span>
+    </div>
+    <button id="restartBtn">Play Again</button>
+  </div>
+  <audio id="bounceSound" src="https://www.soundjay.com/button/beep-07.wav" preload="auto"></audio>
+  <audio id="gameOverSound" src="https://www.soundjay.com/button/beep-10.wav" preload="auto"></audio>
+
+  <script>
+    const gameContainer = document.getElementById('game');
+    const ball = document.getElementById('ball');
+    const paddle = document.getElementById('paddle');
+    const scoreDisplay = document.getElementById('score');
+    const gameOverText = document.getElementById('gameOver');
+    const restartBtn = document.getElementById('restartBtn');
+    const finalScore = document.getElementById('finalScore');
+    const bounceSound = document.getElementById('bounceSound');
+    const gameOverSound = document.getElementById('gameOverSound');
+    const pauseBtn = document.getElementById('pauseBtn');
+
+    let ballX, ballY, ballSpeedX, ballSpeedY, paddleX, score, lives, isGameActive;
+    let lastTime = null;
+    let isPaused = false;
+    const maxBallSpeed = 6;
+
+    function initGame() {
+      ballX = gameContainer.clientWidth / 2;
+      ballY = 20;
+      ballSpeedX = 3;
+      ballSpeedY = 3;
+      paddleX = gameContainer.clientWidth / 2 - paddle.offsetWidth / 2;
+      score = 0;
+      lives = 3;
+      isGameActive = true;
+      isPaused = false;
+      pauseBtn.textContent = '⏸ Pause';
+      lastTime = null;
+      ball.style.left = ballX + 'px';
+      ball.style.top = ballY + 'px';
+      paddle.style.left = paddleX + 'px';
+      updateScoreDisplay();
+      gameOverText.style.display = 'none';
+      restartBtn.style.display = 'none';
+      bounceSound.load();
+      gameOverSound.load();
+      ball.classList.add('ball-bounce');
+      void ball.offsetWidth;
+      ball.classList.remove('ball-bounce');
+    }
+
+    function updateScoreDisplay() {
+      scoreDisplay.textContent = `Score: ${score} | Lives: ${lives}`;
+    }
+
+    function resetBallPosition() {
+      ballX = gameContainer.clientWidth / 2;
+      ballY = 20;
+      ball.style.left = ballX + 'px';
+      ball.style.top = ballY + 'px';
+    }
+
+    function createStars(x, y) {
+      const fragment = document.createDocumentFragment();
+      for (let i = 0; i < 10; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        star.style.left = x + 'px';
+        star.style.top = y + 'px';
+        const angle = Math.random() * 2 * Math.PI;
+        const distance = Math.random() * 30 + 20;
+        star.style.setProperty('--star-translate-x', `${Math.cos(angle) * distance}px`);
+        star.style.setProperty('--star-translate-y', `${Math.sin(angle) * distance}px`);
+        fragment.appendChild(star);
+        setTimeout(() => star.remove(), 800);
+      }
+      gameContainer.appendChild(fragment);
+    }
+
+    function moveBall(timestamp) {
+      if (!isGameActive || isPaused) return;
+      if (lastTime === null) lastTime = timestamp;
+      const delta = (timestamp - lastTime) / 16.67;
+      lastTime = timestamp;
+
+      ballX += ballSpeedX * delta;
+      ballY += ballSpeedY * delta;
+
+      if (ballX <= 0 || ballX >= gameContainer.clientWidth - ball.offsetWidth) {
+        ballX = Math.max(0, Math.min(ballX, gameContainer.clientWidth - ball.offsetWidth));
+        ballSpeedX *= -1;
+        triggerWallHit();
+      }
+      if (ballY <= 0) {
+        ballY = 0;
+        ballSpeedY *= -1;
+        triggerWallHit();
+      }
+
+      if (ballY >= gameContainer.clientHeight) {
+        lives--;
+        if (lives > 0) {
+          updateScoreDisplay();
+          resetBallPosition();
+          requestAnimationFrame(moveBall);
+          return;
+        } else {
+          gameOver();
+          return;
+        }
+      }
+
+      const paddleTop = gameContainer.clientHeight - paddle.offsetHeight - 30;
+      if (
+        ballSpeedY > 0 &&
+        ballY + ball.offsetHeight >= paddleTop &&
+        ballX + ball.offsetWidth > paddleX &&
+        ballX < paddleX + paddle.offsetWidth
+      ) {
+        ballY = paddleTop - ball.offsetHeight;
+        ballSpeedY *= -1;
+        ballSpeedY = Math.min(ballSpeedY * 1.05, maxBallSpeed);
+        ballSpeedX = Math.max(Math.min(ballSpeedX * 1.05, maxBallSpeed), -maxBallSpeed);
+        triggerWallHit();
+        score++;
+        updateScoreDisplay();
+      }
+
+      ball.style.left = ballX + 'px';
+      ball.style.top = ballY + 'px';
+      requestAnimationFrame(moveBall);
+    }
+
+    function triggerWallHit() {
+      ball.classList.add('ball-bounce');
+      void ball.offsetWidth;
+      ball.classList.remove('ball-bounce');
+      playSound(bounceSound);
+      ball.style.background = `hsl(${Math.random() * 360}, 70%, 50%)`;
+      createStars(ballX + ball.offsetWidth/2, ballY + ball.offsetHeight/2);
+    }
+
+    function gameOver() {
+      isGameActive = false;
+      finalScore.textContent = score;
+      gameOverText.style.display = 'block';
+      restartBtn.style.display = 'block';
+      playSound(gameOverSound);
+    }
+
+    function playSound(sound) {
+      sound.currentTime = 0;
+      sound.play().catch(() => {});
+    }
+
+    gameContainer.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const touchX = e.touches[0].clientX;
+      const gameRect = gameContainer.getBoundingClientRect();
+      paddleX = Math.max(0, Math.min(
+        touchX - gameRect.left - paddle.offsetWidth/2,
+        gameContainer.clientWidth - paddle.offsetWidth
+      ));
+      paddle.style.left = paddleX + 'px';
+    });
+
+    pauseBtn.addEventListener('click', () => {
+      isPaused = !isPaused;
+      pauseBtn.textContent = isPaused ? '▶ Resume' : '⏸ Pause';
+      if (!isPaused) requestAnimationFrame(moveBall);
+    });
+
+    restartBtn.addEventListener('click', () => {
+      initGame();
+      requestAnimationFrame(moveBall);
+    });
+
+    initGame();
+    requestAnimationFrame(moveBall);
+  </script>
+</body>
+</html>

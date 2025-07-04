@@ -1,304 +1,214 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catch the Ball Game - Bug-Free</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Catch the Ball Game - Progressive Speed</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      background: linear-gradient(to bottom, #74ebd5, #acb6e5); 
-      display: flex; 
-      justify-content: center; 
-      align-items: flex-start; 
-      height: 100vh; 
-      overflow: hidden; 
+    body {
+      background: linear-gradient(to bottom, #74ebd5, #acb6e5);
+      display: flex; justify-content: center; align-items: flex-start;
+      height: 100vh; overflow: hidden;
     }
-    .game-container { 
-      position: relative; 
-      width: 100vw; 
-      max-width: 600px; 
-      height: 90vh; 
-      background: #ffffff; 
-      overflow: hidden; 
-      border: 3px solid #333; 
+    .game-container {
+      position: relative; width: 100vw; max-width: 600px; height: 90vh;
+      background: #fff; overflow: hidden; border: 3px solid #333;
+      transition: background 0.5s ease;
     }
-    .ball { 
-      width: 20px; 
-      height: 20px; 
-      background: red; 
-      border-radius: 50%; 
-      position: absolute; 
-      top: 10px; 
-      left: 50%; 
-      transform: translateX(-50%); 
+    .ball {
+      width: 20px; height: 20px; background: red; border-radius: 50%;
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
     }
-    .paddle { 
-      width: 150px; 
-      height: 25px; 
-      background: black; 
-      position: absolute; 
-      bottom: 30px; 
-      border-radius: 10px; 
-      touch-action: none; 
+    .paddle {
+      width: 150px; height: 25px; background: black;
+      position: absolute; bottom: 30px; border-radius: 10px;
+      touch-action: none;
     }
-    .score { 
-      font-size: 18px; 
-      position: absolute; 
-      top: 10px; 
-      left: 10px; 
-      font-family: Arial, sans-serif; 
-      color: #333; 
+    .score {
+      font-size: 18px; position: absolute; top: 10px; left: 10px;
+      font-family: Arial, sans-serif; color: #333;
     }
-    .game-over { 
-      font-size: 30px; 
-      color: red; 
-      position: absolute; 
-      top: 50%; 
-      left: 50%; 
-      transform: translate(-50%, -50%); 
-      display: none; 
-      text-align: center; 
+    .game-over {
+      font-size: 30px; color: red;
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%); display: none; text-align: center;
     }
-    #restartBtn { 
-      position: absolute; 
-      top: 60%; 
-      left: 50%; 
-      transform: translateX(-50%); 
-      padding: 10px 20px; 
-      display: none; 
-      cursor: pointer; 
-      background: #4CAF50; 
-      border: none; 
-      color: white; 
-      border-radius: 5px; 
+    #restartBtn {
+      position: absolute; top: 60%; left: 50%; transform: translateX(-50%);
+      padding: 10px 20px; display: none; cursor: pointer;
+      background: #4CAF50; border: none; color: #fff; border-radius: 5px;
+      z-index: 30;
     }
-    .ball-bounce { 
-      animation: bounceEffect 0.2s ease-out; 
-    }
-    @keyframes bounceEffect {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.2); }
-      100% { transform: scale(1); }
-    }
+    .ball-bounce { animation: bounceEffect 0.2s ease-out; }
+    @keyframes bounceEffect { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
     .star {
-      position: absolute;
-      width: 6px;
-      height: 6px;
-      background: red;
-      border-radius: 50%;
-      opacity: 1;
-      pointer-events: none;
-      animation: starOut 0.8s ease-out forwards;
+      position: absolute; width: 6px; height: 6px;
+      background: red; border-radius: 50%; opacity: 1;
+      pointer-events: none; animation: starOut 0.8s ease-out forwards;
     }
-    @keyframes starOut {
-      0% { transform: translate(0, 0) scale(1); opacity: 1; }
-      100% { transform: translate(var(--star-translate-x), var(--star-translate-y)) scale(0.5); opacity: 0; }
+    @keyframes starOut { 0% { transform: translate(0,0) scale(1); opacity:1; } 100% { transform: translate(var(--sx), var(--sy)) scale(0.5); opacity:0; } }
+    #countdown {
+      position: absolute; top: 40%; left:50%; transform:translateX(-50%);
+      font-size:5rem; color:white; text-shadow:0 0 10px black;
+      font-family:Arial,sans-serif; pointer-events:none;
+      z-index: 40;
+    }
+    @keyframes slowmo { from { filter:none; transform:scale(1); } to { filter:blur(2px) contrast(0.7); transform:scale(0.95); } }
+    .paused-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); display: none;
+      justify-content: center; align-items: center;
+      color: #fff; font-size: 48px; font-family: Arial, sans-serif;
+      z-index: 20;
     }
     #pauseBtn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      padding: 6px 14px;
-      font-size: 14px;
-      border: none;
-      border-radius: 8px;
-      background: #333;
-      color: white;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      transition: background 0.3s ease;
+      position:absolute; top:10px; right:10px;
+      padding:10px 16px; font-size:16px; font-family:Arial,sans-serif;
+      border:none; border-radius:6px; background:#007bff;
+      color:#fff; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.15);
+      transition:background 0.2s, transform 0.1s;
+      z-index: 50;
     }
-
-    #pauseBtn:hover {
-      background: #555;
-    }
+    #pauseBtn:hover { background:#0056b3; transform:translateY(-2px); }
+    #pauseBtn:active { transform:translateY(0); box-shadow:0 2px 4px rgba(0,0,0,0.2); }
   </style>
 </head>
 <body>
   <div class="game-container" id="game">
     <div class="score" id="score">Score: 0 | Lives: 3</div>
     <button id="pauseBtn">⏸ Pause</button>
+    <div class="paused-overlay" id="pausedOverlay">PAUSED</div>
     <div class="ball" id="ball"></div>
     <div class="paddle" id="paddle"></div>
-    <div class="game-over" id="gameOver">
-      Game Over!<br>Final Score: <span id="finalScore">0</span>
-    </div>
+    <div class="game-over" id="gameOver">Game Over!<br>Final Score: <span id="finalScore">0</span></div>
     <button id="restartBtn">Play Again</button>
   </div>
   <audio id="bounceSound" src="https://www.soundjay.com/button/beep-07.wav" preload="auto"></audio>
   <audio id="gameOverSound" src="https://www.soundjay.com/button/beep-10.wav" preload="auto"></audio>
-
   <script>
-    const gameContainer = document.getElementById('game');
+    const gc = document.getElementById('game');
     const ball = document.getElementById('ball');
     const paddle = document.getElementById('paddle');
-    const scoreDisplay = document.getElementById('score');
-    const gameOverText = document.getElementById('gameOver');
+    const scoreEl = document.getElementById('score');
+    const gameOverEl = document.getElementById('gameOver');
     const restartBtn = document.getElementById('restartBtn');
-    const finalScore = document.getElementById('finalScore');
+    const finalScoreEl = document.getElementById('finalScore');
     const bounceSound = document.getElementById('bounceSound');
     const gameOverSound = document.getElementById('gameOverSound');
     const pauseBtn = document.getElementById('pauseBtn');
+    const pausedOverlay = document.getElementById('pausedOverlay');let x, y, baseSpeed, dirX, dirY, paddleX;
+let score, lives, running, paused;
+let lastTime = 0, startTime = 0, pausedTimeAccum = 0, pauseStart = 0;
+const colors = ['#fdebd3','#d6eaf8','#d5f5e3','#f9e79f','#fadbd8','#e8daef'];
 
-    let ballX, ballY, ballSpeedX, ballSpeedY, paddleX, score, lives, isGameActive;
-    let lastTime = null;
-    let isPaused = false;
-    const maxBallSpeed = 6;
+function showCountdown(cb) {
+  let count = 3;
+  const cd = document.createElement('div'); cd.id = 'countdown'; gc.append(cd);
+  (function tick() {
+    if (count > 0) { cd.textContent = count--; setTimeout(tick, 700); }
+    else { cd.remove(); cb(); }
+  })();
+}
 
-    function initGame() {
-      ballX = gameContainer.clientWidth / 2;
-      ballY = 20;
-      ballSpeedX = 3;
-      ballSpeedY = 3;
-      paddleX = gameContainer.clientWidth / 2 - paddle.offsetWidth / 2;
-      score = 0;
-      lives = 3;
-      isGameActive = true;
-      isPaused = false;
-      pauseBtn.textContent = '⏸ Pause';
-      lastTime = null;
-      ball.style.left = ballX + 'px';
-      ball.style.top = ballY + 'px';
-      paddle.style.left = paddleX + 'px';
-      updateScoreDisplay();
-      gameOverText.style.display = 'none';
-      restartBtn.style.display = 'none';
-      bounceSound.load();
-      gameOverSound.load();
-      ball.classList.add('ball-bounce');
-      void ball.offsetWidth;
-      ball.classList.remove('ball-bounce');
-    }
+function init() {
+  x = gc.clientWidth/2 - ball.offsetWidth/2;
+  y = 20;
+  // Increased initial speed for a more engaging start
+  baseSpeed = 3; dirX = 1; dirY = 1;
+  paddleX = (gc.clientWidth - paddle.offsetWidth)/2;
+  score = 0; lives = 3; running = true; paused = false;
+  lastTime = 0; startTime = 0; pausedTimeAccum = 0;
+  pauseBtn.textContent = '⏸ Pause'; pausedOverlay.style.display = 'none';
+  gc.style.background = colors[0];
+  updateScore(); gameOverEl.style.display = 'none'; restartBtn.style.display = 'none';
+  ball.style.left = x + 'px'; ball.style.top = y + 'px'; paddle.style.left = paddleX + 'px';
+  showCountdown(() => { startTime = performance.now(); lastTime = startTime; requestAnimationFrame(gameLoop); });
+}
 
-    function updateScoreDisplay() {
-      scoreDisplay.textContent = `Score: ${score} | Lives: ${lives}`;
-    }
+function updateScore() {
+  scoreEl.textContent = `Score: ${score} | Lives: ${lives}`;
+  // Change background every 10 points
+  if (score > 0 && score % 10 === 0) {
+    const idx = ((score/10) - 1) % colors.length;
+    gc.style.background = colors[(idx + 1) % colors.length];
+  }
+  // Increase speed every 5 points
+  if (score > 0 && score % 5 === 0) {
+    baseSpeed += 0.5;
+  }
+}
 
-    function resetBallPosition() {
-      ballX = gameContainer.clientWidth / 2;
-      ballY = 20;
-      ball.style.left = ballX + 'px';
-      ball.style.top = ballY + 'px';
-    }
+function createParticles(cx, cy, count=15) {
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div'); p.className = 'star';
+    p.style.left = cx + 'px'; p.style.top = cy + 'px';
+    const angle = Math.random()*2*Math.PI, dist = Math.random()*40+20;
+    p.style.setProperty('--sx', Math.cos(angle)*dist + 'px');
+    p.style.setProperty('--sy', Math.sin(angle)*dist + 'px');
+    frag.append(p); setTimeout(() => p.remove(), 800);
+  }
+  gc.append(frag);
+}
 
-    function createStars(x, y) {
-      const fragment = document.createDocumentFragment();
-      for (let i = 0; i < 10; i++) {
-        const star = document.createElement('div');
-        star.className = 'star';
-        star.style.left = x + 'px';
-        star.style.top = y + 'px';
-        const angle = Math.random() * 2 * Math.PI;
-        const distance = Math.random() * 30 + 20;
-        star.style.setProperty('--star-translate-x', `${Math.cos(angle) * distance}px`);
-        star.style.setProperty('--star-translate-y', `${Math.sin(angle) * distance}px`);
-        fragment.appendChild(star);
-        setTimeout(() => star.remove(), 800);
-      }
-      gameContainer.appendChild(fragment);
-    }
+function gameLoop(time) {
+  if (!running) return;
+  if (paused) { requestAnimationFrame(gameLoop); return; }
+  const dt = (time - lastTime) / 1000; lastTime = time;
+  const speed = baseSpeed; // constant speed starts higher
+  x += dirX * speed * dt * 60;
+  y += dirY * speed * dt * 60;
+  const maxX = gc.clientWidth - ball.offsetWidth;
+  if (x <= 0) { x = 0; dirX = 1; bounce(); }
+  if (x >= maxX) { x = maxX; dirX = -1; bounce(); }
+  if (y <= 0) { y = 0; dirY = 1; bounce(); }
+  const maxY = gc.clientHeight - ball.offsetHeight;
+  if (y >= maxY) { lives--; updateScore(); if (lives > 0) resetBall(); else return endGame(); }
+  const padTop = gc.clientHeight - paddle.offsetHeight - 30;
+  if (dirY > 0 && y + ball.offsetHeight >= padTop && x + ball.offsetWidth > paddleX && x < paddleX + paddle.offsetWidth) {
+    y = padTop - ball.offsetHeight; dirY = -1; bounce(); score++; updateScore();
+  }
+  ball.style.left = x + 'px'; ball.style.top = y + 'px';
+  requestAnimationFrame(gameLoop);
+}
 
-    function moveBall(timestamp) {
-      if (!isGameActive || isPaused) return;
-      if (lastTime === null) lastTime = timestamp;
-      const delta = (timestamp - lastTime) / 16.67;
-      lastTime = timestamp;
+function bounce() {
+  ball.classList.add('ball-bounce'); void ball.offsetWidth; ball.classList.remove('ball-bounce');
+  bounceSound.currentTime = 0; bounceSound.play().catch(() => {});
+  ball.style.background = `hsl(${Math.random()*360},70%,50%)`;
+  createParticles(x + ball.offsetWidth/2, y + ball.offsetHeight/2);
+}
 
-      ballX += ballSpeedX * delta;
-      ballY += ballSpeedY * delta;
+function resetBall() { x = gc.clientWidth/2 - ball.offsetWidth/2; y = 20; dirY = 1; }
 
-      if (ballX <= 0 || ballX >= gameContainer.clientWidth - ball.offsetWidth) {
-        ballX = Math.max(0, Math.min(ballX, gameContainer.clientWidth - ball.offsetWidth));
-        ballSpeedX *= -1;
-        triggerWallHit();
-      }
-      if (ballY <= 0) {
-        ballY = 0;
-        ballSpeedY *= -1;
-        triggerWallHit();
-      }
+function endGame() {
+  running = false; document.body.style.animation = 'slowmo 1s forwards';
+  const pr = paddle.getBoundingClientRect(), gr = gc.getBoundingClientRect();
+  createParticles(pr.left + pr.width/2 - gr.left, pr.top + pr.height/2 - gr.top, 40);
+  gameOverSound.currentTime = 0; gameOverSound.play().catch(() => {});
+  setTimeout(() => { gameOverEl.style.display = 'block'; restartBtn.style.display = 'block'; animateEnd(); }, 1000);
+}
 
-      if (ballY >= gameContainer.clientHeight) {
-        lives--;
-        if (lives > 0) {
-          updateScoreDisplay();
-          resetBallPosition();
-          requestAnimationFrame(moveBall);
-          return;
-        } else {
-          gameOver();
-          return;
-        }
-      }
+function animateEnd() {
+  let v = 0, t = score, step = Math.ceil(t/30);
+  const iv = setInterval(() => { v = Math.min(v + step, t); finalScoreEl.textContent = v; if (v >= t) clearInterval(iv); }, 30);
+}
 
-      const paddleTop = gameContainer.clientHeight - paddle.offsetHeight - 30;
-      if (
-        ballSpeedY > 0 &&
-        ballY + ball.offsetHeight >= paddleTop &&
-        ballX + ball.offsetWidth > paddleX &&
-        ballX < paddleX + paddle.offsetWidth
-      ) {
-        ballY = paddleTop - ball.offsetHeight;
-        ballSpeedY *= -1;
-        ballSpeedY = Math.min(ballSpeedY * 1.05, maxBallSpeed);
-        ballSpeedX = Math.max(Math.min(ballSpeedX * 1.05, maxBallSpeed), -maxBallSpeed);
-        triggerWallHit();
-        score++;
-        updateScoreDisplay();
-      }
+gc.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const bx = e.touches[0].clientX - gc.getBoundingClientRect().left - paddle.offsetWidth/2;
+  paddleX = Math.max(0, Math.min(bx, gc.clientWidth - paddle.offsetWidth));
+  paddle.style.left = paddleX + 'px';
+});
 
-      ball.style.left = ballX + 'px';
-      ball.style.top = ballY + 'px';
-      requestAnimationFrame(moveBall);
-    }
+pauseBtn.addEventListener('click', () => {
+  if (!paused) { paused = true; pauseStart = performance.now(); pausedOverlay.style.display = 'flex'; pauseBtn.textContent = '▶ Resume'; }
+  else { paused = false; pausedOverlay.style.display = 'none'; pauseBtn.textContent = '⏸ Pause'; lastTime = performance.now(); requestAnimationFrame(gameLoop); }
+});
 
-    function triggerWallHit() {
-      ball.classList.add('ball-bounce');
-      void ball.offsetWidth;
-      ball.classList.remove('ball-bounce');
-      playSound(bounceSound);
-      ball.style.background = `hsl(${Math.random() * 360}, 70%, 50%)`;
-      createStars(ballX + ball.offsetWidth/2, ballY + ball.offsetHeight/2);
-    }
+restartBtn.addEventListener('click', () => { document.body.style.animation = ''; init(); });
+init();
 
-    function gameOver() {
-      isGameActive = false;
-      finalScore.textContent = score;
-      gameOverText.style.display = 'block';
-      restartBtn.style.display = 'block';
-      playSound(gameOverSound);
-    }
-
-    function playSound(sound) {
-      sound.currentTime = 0;
-      sound.play().catch(() => {});
-    }
-
-    gameContainer.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      const touchX = e.touches[0].clientX;
-      const gameRect = gameContainer.getBoundingClientRect();
-      paddleX = Math.max(0, Math.min(
-        touchX - gameRect.left - paddle.offsetWidth/2,
-        gameContainer.clientWidth - paddle.offsetWidth
-      ));
-      paddle.style.left = paddleX + 'px';
-    });
-
-    pauseBtn.addEventListener('click', () => {
-      isPaused = !isPaused;
-      pauseBtn.textContent = isPaused ? '▶ Resume' : '⏸ Pause';
-      if (!isPaused) requestAnimationFrame(moveBall);
-    });
-
-    restartBtn.addEventListener('click', () => {
-      initGame();
-      requestAnimationFrame(moveBall);
-    });
-
-    initGame();
-    requestAnimationFrame(moveBall);
   </script>
 </body>
 </html>

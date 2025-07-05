@@ -66,7 +66,7 @@
     }
     #pauseBtn {
       position:absolute; top:10px; right:10px;
-      padding:10px 16px; font-size:16px; font-family:Arial,sans-serif;
+      padding:8px 12px; font-size:14px; font-family:Arial,sans-serif;
       border:none; border-radius:6px; background:#007bff;
       color:#fff; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.15);
       transition:background 0.2s, transform 0.1s;
@@ -106,6 +106,7 @@
     let x, y, baseSpeed, dirX, dirY, paddleX;
     let score, lives, running, paused;
     let lastTime = 0, highScore = parseInt(localStorage.getItem('catchBallHighScore')) || 0;
+    let animationId = null;
     const colors = ['#fdebd3','#d6eaf8','#d5f5e3','#f9e79f','#fadbd8','#e8daef'];
 
     function init() {
@@ -118,7 +119,8 @@
       gc.style.background = colors[0];
       updateScore(); gameOverEl.style.display = 'none'; restartBtn.style.display = 'none';
       ball.style.left = x + 'px'; ball.style.top = y + 'px'; paddle.style.left = paddleX + 'px';
-      requestAnimationFrame(gameLoop);
+      lastTime = performance.now();
+      animationId = requestAnimationFrame(gameLoop);
     }
 
     function updateScore() {
@@ -152,8 +154,7 @@
     }
 
     function gameLoop(time) {
-      if (!running) return;
-      if (paused) { requestAnimationFrame(gameLoop); return; }
+      if (!running || paused) return;
       const dt = (time - lastTime) / 1000; lastTime = time;
       const speed = baseSpeed;
 
@@ -179,7 +180,7 @@
 
       ball.style.left = x + 'px';
       ball.style.top = y + 'px';
-      requestAnimationFrame(gameLoop);
+      animationId = requestAnimationFrame(gameLoop);
     }
 
     function bounce() {
@@ -218,12 +219,20 @@
 
     pauseBtn.addEventListener('click', () => {
       paused = !paused;
-      pausedOverlay.style.display = paused ? 'flex' : 'none';
-      pauseBtn.textContent = paused ? '▶ Resume' : '⏸ Pause';
-      if (!paused) requestAnimationFrame(gameLoop);
+      if (paused) {
+        cancelAnimationFrame(animationId);
+        pausedOverlay.style.display = 'flex';
+        pauseBtn.textContent = '▶ Resume';
+      } else {
+        pausedOverlay.style.display = 'none';
+        pauseBtn.textContent = '⏸ Pause';
+        lastTime = performance.now();
+        animationId = requestAnimationFrame(gameLoop);
+      }
     });
 
     restartBtn.addEventListener('click', () => {
+      cancelAnimationFrame(animationId);
       init();
     });
 

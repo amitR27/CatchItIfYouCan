@@ -1,22 +1,14 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-495620179"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-495620179');
-</script>
-<!-- End Google Analytics -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Catch the Ball Game - High Score Added</title>
+  <title>Catch the Ball - Start Game Button</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: linear-gradient(to bottom, #74ebd5, #acb6e5);
+      background: radial-gradient(circle at top, #8ec5fc, #e0c3fc);
       display: flex; justify-content: center; align-items: flex-start;
       height: 100vh; overflow: hidden;
     }
@@ -27,12 +19,19 @@
     }
     .ball {
       width: 20px; height: 20px; background: red; border-radius: 50%;
-      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      position: absolute; top: 10px; left: 50%;
+      transform: translateX(-50%);
+      transition: background 0.3s ease;
     }
     .paddle {
       width: 150px; height: 25px; background: black;
       position: absolute; bottom: 30px; border-radius: 10px;
+      box-shadow: 0 0 10px transparent;
+      transition: box-shadow 0.2s ease;
       touch-action: none;
+    }
+    .paddle-glow {
+      box-shadow: 0 0 20px red;
     }
     .score {
       font-size: 18px; position: absolute; top: 10px; left: 10px;
@@ -43,20 +42,13 @@
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%); display: none; text-align: center;
     }
-    #restartBtn {
+    #restartBtn, #startBtn {
       position: absolute; top: 60%; left: 50%; transform: translateX(-50%);
-      padding: 10px 20px; display: none; cursor: pointer;
-      background: #4CAF50; border: none; color: #fff; border-radius: 5px;
-      z-index: 30;
+      padding: 12px 24px; font-size: 18px;
+      background: #28a745; color: #fff; border: none; border-radius: 8px;
+      display: none; cursor: pointer; z-index: 60;
     }
-    .ball-bounce { animation: bounceEffect 0.2s ease-out; }
-    @keyframes bounceEffect { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
-    .star {
-      position: absolute; width: 6px; height: 6px;
-      background: red; border-radius: 50%; opacity: 1;
-      pointer-events: none; animation: starOut 0.8s ease-out forwards;
-    }
-    @keyframes starOut { 0% { transform: translate(0,0) scale(1); opacity:1; } 100% { transform: translate(var(--sx), var(--sy)) scale(0.5); opacity:0; } }
+    #startBtn { top: 45%; display: block; }
     .paused-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5); display: none;
@@ -64,16 +56,23 @@
       color: #fff; font-size: 48px; font-family: Arial, sans-serif;
       z-index: 20;
     }
+    .star {
+      position: absolute; width: 6px; height: 6px;
+      background: red; border-radius: 50%; opacity: 1;
+      pointer-events: none; animation: starOut 0.8s ease-out forwards;
+    }
+    @keyframes starOut {
+      0% { transform: translate(0,0) scale(1); opacity:1; }
+      100% { transform: translate(var(--sx), var(--sy)) scale(0.5); opacity:0; }
+    }
     #pauseBtn {
       position:absolute; top:10px; right:10px;
-      padding:8px 12px; font-size:14px; font-family:Arial,sans-serif;
+      padding:8px 12px; font-size:14px;
       border:none; border-radius:6px; background:#007bff;
       color:#fff; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.15);
-      transition:background 0.2s, transform 0.1s;
       z-index: 50;
     }
-    #pauseBtn:hover { background:#0056b3; transform:translateY(-2px); }
-    #pauseBtn:active { transform:translateY(0); box-shadow:0 2px 4px rgba(0,0,0,0.2); }
+    #pauseBtn:hover { background:#0056b3; }
   </style>
 </head>
 <body>
@@ -85,10 +84,15 @@
     <div class="paddle" id="paddle"></div>
     <div class="game-over" id="gameOver">Game Over!<br>Final Score: <span id="finalScore">0</span></div>
     <button id="restartBtn">Play Again</button>
+    <button id="startBtn" style="box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s;"
+    onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
+    >Start Game</button>
   </div>
 
   <audio id="bounceSound" src="https://www.soundjay.com/button/beep-07.wav" preload="auto"></audio>
   <audio id="gameOverSound" src="https://www.soundjay.com/button/beep-10.wav" preload="auto"></audio>
+  <audio id="missBallSound" src="https://www.soundjay.com/button/beep-05.wav" preload="auto"></audio>
+  <audio id="bgMusic" src="https://www.bensound.com/bensound-music/bensound-energy.mp3" preload="auto" loop></audio>
 
   <script>
     const gc = document.getElementById('game');
@@ -100,25 +104,39 @@
     const finalScoreEl = document.getElementById('finalScore');
     const bounceSound = document.getElementById('bounceSound');
     const gameOverSound = document.getElementById('gameOverSound');
+    const bgMusic = document.getElementById('bgMusic');
+    const missBallSound = document.getElementById('missBallSound');
     const pauseBtn = document.getElementById('pauseBtn');
     const pausedOverlay = document.getElementById('pausedOverlay');
+    const startBtn = document.getElementById('startBtn');
 
     let x, y, baseSpeed, dirX, dirY, paddleX;
     let score, lives, running, paused;
-    let lastTime = 0, highScore = parseInt(localStorage.getItem('catchBallHighScore')) || 0;
-    let animationId = null;
+    let lastTime = 0, animationId = null;
+    let highScore = parseInt(localStorage.getItem('catchBallHighScore')) || 0;
     const colors = ['#fdebd3','#d6eaf8','#d5f5e3','#f9e79f','#fadbd8','#e8daef'];
 
+    startBtn.addEventListener('click', () => {
+      startBtn.style.display = 'none';
+      bgMusic.play().catch(() => {});
+      init();
+    });
+
     function init() {
-      x = gc.clientWidth/2 - ball.offsetWidth/2;
+      x = gc.clientWidth / 2 - ball.offsetWidth / 2;
       y = 20;
       baseSpeed = 3; dirX = 1; dirY = 1;
-      paddleX = (gc.clientWidth - paddle.offsetWidth)/2;
+      paddleX = (gc.clientWidth - paddle.offsetWidth) / 2;
       score = 0; lives = 3; running = true; paused = false;
-      pauseBtn.textContent = '⏸ Pause'; pausedOverlay.style.display = 'none';
+      updateScore();
+      gameOverEl.style.display = 'none';
+      restartBtn.style.display = 'none';
+      pauseBtn.textContent = '⏸ Pause';
+      pausedOverlay.style.display = 'none';
       gc.style.background = colors[0];
-      updateScore(); gameOverEl.style.display = 'none'; restartBtn.style.display = 'none';
-      ball.style.left = x + 'px'; ball.style.top = y + 'px'; paddle.style.left = paddleX + 'px';
+      ball.style.left = x + 'px'; ball.style.top = y + 'px';
+      paddle.style.left = paddleX + 'px';
+      bgMusic.volume = 0.2;
       lastTime = performance.now();
       animationId = requestAnimationFrame(gameLoop);
     }
@@ -129,53 +147,42 @@
         localStorage.setItem('catchBallHighScore', highScore);
       }
       scoreEl.textContent = `Score: ${score} | Lives: ${lives} | High Score: ${highScore}`;
-
+      if (score > 0 && score % 5 === 0) baseSpeed += 0.3;
       if (score > 0 && score % 10 === 0) {
         const idx = ((score / 10) - 1) % colors.length;
         gc.style.background = colors[(idx + 1) % colors.length];
       }
-
-      if (score > 0 && score % 5 === 0) {
-        baseSpeed += 0.5;
-      }
-    }
-
-    function createParticles(cx, cy, count=15) {
-      const frag = document.createDocumentFragment();
-      for (let i = 0; i < count; i++) {
-        const p = document.createElement('div'); p.className = 'star';
-        p.style.left = cx + 'px'; p.style.top = cy + 'px';
-        const angle = Math.random()*2*Math.PI, dist = Math.random()*40+20;
-        p.style.setProperty('--sx', Math.cos(angle)*dist + 'px');
-        p.style.setProperty('--sy', Math.sin(angle)*dist + 'px');
-        frag.append(p); setTimeout(() => p.remove(), 800);
-      }
-      gc.append(frag);
+      bgMusic.playbackRate = 1 + score / 50;
     }
 
     function gameLoop(time) {
       if (!running || paused) return;
-      const dt = (time - lastTime) / 1000; lastTime = time;
-      const speed = baseSpeed;
+      const dt = (time - lastTime) / 1000;
+      lastTime = time;
 
-      x += dirX * speed * dt * 60;
-      y += dirY * speed * dt * 60;
-      const maxX = gc.clientWidth - ball.offsetWidth;
+      x += dirX * baseSpeed * dt * 60;
+      y += dirY * baseSpeed * dt * 60;
 
-      if (x <= 0) { x = 0; dirX = 1; bounce(); }
-      if (x >= maxX) { x = maxX; dirX = -1; bounce(); }
-      if (y <= 0) { y = 0; dirY = 1; bounce(); }
+      if (x <= 0 || x >= gc.clientWidth - ball.offsetWidth) {
+        dirX *= -1; bounce();
+      }
 
-      const maxY = gc.clientHeight - ball.offsetHeight;
-      if (y >= maxY) { lives--; updateScore(); if (lives > 0) resetBall(); else return endGame(); }
+      if (y <= 0) {
+        dirY = 1; bounce();
+      }
 
-      const padTop = gc.clientHeight - paddle.offsetHeight - 30;
-      if (dirY > 0 && y + ball.offsetHeight >= padTop && x + ball.offsetWidth > paddleX && x < paddleX + paddle.offsetWidth) {
-        y = padTop - ball.offsetHeight;
+      if (y >= gc.clientHeight - ball.offsetHeight) {
+        lives--; updateScore(); missBallSound.play().catch(() => {}); lifeLostEffect();
+        if (lives <= 0) return endGame();
+        resetBall();
+      }
+
+      const paddleTop = gc.clientHeight - paddle.offsetHeight - 30;
+      if (dirY > 0 && y + ball.offsetHeight >= paddleTop &&
+          x + ball.offsetWidth > paddleX && x < paddleX + paddle.offsetWidth) {
+        y = paddleTop - ball.offsetHeight;
         dirY = -1;
-        bounce();
-        score++;
-        updateScore();
+        score++; updateScore(); bounce(); paddleHitEffect();
       }
 
       ball.style.left = x + 'px';
@@ -184,13 +191,33 @@
     }
 
     function bounce() {
-      ball.classList.add('ball-bounce');
-      void ball.offsetWidth;
-      ball.classList.remove('ball-bounce');
+      ball.style.background = `hsl(${Math.random()*360}, 70%, 50%)`;
       bounceSound.currentTime = 0;
       bounceSound.play().catch(() => {});
-      ball.style.background = `hsl(${Math.random()*360},70%,50%)`;
       createParticles(x + ball.offsetWidth / 2, y + ball.offsetHeight / 2);
+    }
+
+    function paddleHitEffect() {
+      paddle.classList.add('paddle-glow');
+      if (navigator.vibrate) navigator.vibrate(30);
+      setTimeout(() => paddle.classList.remove('paddle-glow'), 200);
+    }
+
+    function lifeLostEffect() {
+      if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
+    }
+
+    function createParticles(cx, cy, count=15) {
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('div'); p.className = 'star';
+        p.style.left = cx + 'px'; p.style.top = cy + 'px';
+        const angle = Math.random() * 2 * Math.PI, dist = Math.random() * 40 + 20;
+        p.style.setProperty('--sx', Math.cos(angle) * dist + 'px');
+        p.style.setProperty('--sy', Math.sin(angle) * dist + 'px');
+        frag.append(p); setTimeout(() => p.remove(), 800);
+      }
+      gc.append(frag);
     }
 
     function resetBall() {
@@ -201,17 +228,15 @@
 
     function endGame() {
       running = false;
-      gameOverSound.currentTime = 0;
       gameOverSound.play().catch(() => {});
       setTimeout(() => {
         gameOverEl.style.display = 'block';
         restartBtn.style.display = 'block';
         finalScoreEl.textContent = score;
-      }, 1000);
+      }, 500);
     }
 
     gc.addEventListener('touchmove', e => {
-      e.preventDefault();
       const bx = e.touches[0].clientX - gc.getBoundingClientRect().left - paddle.offsetWidth / 2;
       paddleX = Math.max(0, Math.min(bx, gc.clientWidth - paddle.offsetWidth));
       paddle.style.left = paddleX + 'px';
@@ -223,10 +248,12 @@
         cancelAnimationFrame(animationId);
         pausedOverlay.style.display = 'flex';
         pauseBtn.textContent = '▶ Resume';
+        bgMusic.pause();
       } else {
+        lastTime = performance.now();
         pausedOverlay.style.display = 'none';
         pauseBtn.textContent = '⏸ Pause';
-        lastTime = performance.now();
+        bgMusic.play().catch(() => {});
         animationId = requestAnimationFrame(gameLoop);
       }
     });
@@ -235,8 +262,6 @@
       cancelAnimationFrame(animationId);
       init();
     });
-
-    init();
   </script>
 </body>
 </html>

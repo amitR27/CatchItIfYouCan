@@ -160,8 +160,8 @@
       const dt = (time - lastTime) / 1000;
       lastTime = time;
 
-      x += dirX * baseSpeed * dt * 60;
-      y += dirY * baseSpeed * dt * 60;
+      x += dirX * baseSpeed * dt * 120;
+      y += dirY * baseSpeed * dt * 120;
 
       if (x <= 0 || x >= gc.clientWidth - ball.offsetWidth) {
         dirX *= -1; bounce();

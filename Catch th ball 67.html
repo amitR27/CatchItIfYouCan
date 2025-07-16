@@ -83,11 +83,6 @@
     }
     #pauseBtn:hover { background:#0056b3; }
   </style>
- gc.addEventListener('mousemove', e => {
-  const bx = e.clientX - gc.getBoundingClientRect().left - paddle.offsetWidth / 2;
-  paddleX = Math.max(0, Math.min(bx, gc.clientWidth - paddle.offsetWidth));
-  paddle.style.left = paddleX + 'px';
-});
 </script>
 </head>
 <body>

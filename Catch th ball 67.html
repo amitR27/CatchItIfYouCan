@@ -81,14 +81,11 @@
     }
     #pauseBtn:hover { background:#0056b3; }
   </style>
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-4KWFSYR0FD"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-4KWFSYR0FD');
+ gc.addEventListener('mousemove', e => {
+  const bx = e.clientX - gc.getBoundingClientRect().left - paddle.offsetWidth / 2;
+  paddleX = Math.max(0, Math.min(bx, gc.clientWidth - paddle.offsetWidth));
+  paddle.style.left = paddleX + 'px';
+});
 </script>
 </head>
 <body>

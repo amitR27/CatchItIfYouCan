@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,8 +81,13 @@
       z-index: 50;
     }
     #pauseBtn:hover { background:#0056b3; }
+    /* Countdown Overlay */
+    #countdownOverlay {
+      position:absolute; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center;
+      color:white; font-size:72px; font-family:Arial,sans-serif; z-index:100;
+    }
   </style>
-</script>
 </head>
 <body>
   <div class="game-container" id="game">
@@ -97,12 +101,14 @@
     <button id="startBtn" style="box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s;"
     onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
     >Start Game</button>
+    <div id="countdownOverlay"></div>
   </div>
 
   <audio id="bounceSound" src="https://www.soundjay.com/button/beep-07.wav" preload="auto"></audio>
   <audio id="gameOverSound" src="https://www.soundjay.com/button/beep-10.wav" preload="auto"></audio>
   <audio id="missBallSound" src="https://www.soundjay.com/button/beep-05.wav" preload="auto"></audio>
   <audio id="bgMusic" src="https://www.bensound.com/bensound-music/bensound-energy.mp3" preload="auto" loop></audio>
+  <audio id="whooshSound" src="https://www.soundjay.com/misc/swoosh-01.mp3" preload="auto"></audio>
 
   <script>
     const gc = document.getElementById('game');
@@ -119,6 +125,8 @@
     const pauseBtn = document.getElementById('pauseBtn');
     const pausedOverlay = document.getElementById('pausedOverlay');
     const startBtn = document.getElementById('startBtn');
+    const countdownOverlay = document.getElementById('countdownOverlay');
+    const whooshSound = document.getElementById('whooshSound');
 
     let x, y, baseSpeed, dirX, dirY, paddleX;
     let score, lives, running, paused;
@@ -126,10 +134,37 @@
     let highScore = parseInt(localStorage.getItem('catchBallHighScore')) || 0;
     const colors = ['#fdebd3','#d6eaf8','#d5f5e3','#f9e79f','#fadbd8','#e8daef'];
 
+    // Paddle movement function (shared for touch & mouse)
+    function movePaddle(clientX) {
+      const bx = clientX - gc.getBoundingClientRect().left - paddle.offsetWidth / 2;
+      paddleX = Math.max(0, Math.min(bx, gc.clientWidth - paddle.offsetWidth));
+      paddle.style.left = paddleX + 'px';
+    }
+    gc.addEventListener('mousemove', e => movePaddle(e.clientX));
+    gc.addEventListener('touchmove', e => movePaddle(e.touches[0].clientX));
+
+    function startCountdown(callback) {
+      let count = 3;
+      countdownOverlay.style.display = 'flex';
+      countdownOverlay.textContent = count;
+      const interval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          countdownOverlay.textContent = count;
+        } else if (count === 0) {
+          countdownOverlay.textContent = "GO!";
+        } else {
+          clearInterval(interval);
+          countdownOverlay.style.display = 'none';
+          callback();
+        }
+      }, 800);
+    }
+
     startBtn.addEventListener('click', () => {
       startBtn.style.display = 'none';
       bgMusic.play().catch(() => {});
-      init();
+      startCountdown(init);
     });
 
     function init() {
@@ -202,8 +237,14 @@
 
     function bounce() {
       ball.style.background = `hsl(${Math.random()*360}, 70%, 50%)`;
+      bounceSound.playbackRate = 1 + (Math.random() - 0.5) * 0.2; // pitch variation
       bounceSound.currentTime = 0;
       bounceSound.play().catch(() => {});
+
+      if (baseSpeed > 6) { // high speed trigger
+        whooshSound.currentTime = 0;
+        whooshSound.play().catch(() => {});
+      }
       createParticles(x + ball.offsetWidth / 2, y + ball.offsetHeight / 2);
     }
 
@@ -225,7 +266,8 @@
         const angle = Math.random() * 2 * Math.PI, dist = Math.random() * 40 + 20;
         p.style.setProperty('--sx', Math.cos(angle) * dist + 'px');
         p.style.setProperty('--sy', Math.sin(angle) * dist + 'px');
-        frag.append(p); setTimeout(() => p.remove(), 800);
+        p.addEventListener('animationend', () => p.remove()); // clean up on animation end
+        frag.append(p);
       }
       gc.append(frag);
     }
@@ -246,12 +288,6 @@
       }, 500);
     }
 
-    gc.addEventListener('touchmove', e => {
-      const bx = e.touches[0].clientX - gc.getBoundingClientRect().left - paddle.offsetWidth / 2;
-      paddleX = Math.max(0, Math.min(bx, gc.clientWidth - paddle.offsetWidth));
-      paddle.style.left = paddleX + 'px';
-    });
-
     pauseBtn.addEventListener('click', () => {
       paused = !paused;
       if (paused) {
@@ -260,11 +296,13 @@
         pauseBtn.textContent = '▶ Resume';
         bgMusic.pause();
       } else {
-        lastTime = performance.now();
         pausedOverlay.style.display = 'none';
         pauseBtn.textContent = '⏸ Pause';
-        bgMusic.play().catch(() => {});
-        animationId = requestAnimationFrame(gameLoop);
+        startCountdown(() => {
+          lastTime = performance.now();
+          bgMusic.play().catch(() => {});
+          animationId = requestAnimationFrame(gameLoop);
+        });
       }
     });
 
